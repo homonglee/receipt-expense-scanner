@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>지출결의서 영수증 스캐너</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root{
+      --bg:#f6f7fb;--panel:#ffffff;--ink:#172033;--muted:#667085;--line:#e4e7ec;
+      --primary:#3461ff;--primary2:#6b8cff;--green:#14b86a;--amber:#f59e0b;--red:#ef4444;
+      --shadow:0 18px 55px rgba(23,32,51,.10);--radius:26px;
+    }
+    *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,Apple SD Gothic Neo,Noto Sans KR,sans-serif;background:radial-gradient(circle at 10% 0%,#e9efff 0,#f6f7fb 34%,#f8fafc 100%);color:var(--ink)}
+    button,input,textarea,select{font:inherit} button{cursor:pointer;border:0} a{color:inherit}
+    .wrap{max-width:1180px;margin:0 auto;padding:28px 18px 56px}
+    .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:22px;align-items:stretch;margin-bottom:22px}
+    .hero-card,.panel{background:rgba(255,255,255,.86);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.9);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .hero-card{padding:34px;overflow:hidden;position:relative}.hero-card:after{content:"";position:absolute;right:-70px;top:-70px;width:240px;height:240px;background:linear-gradient(135deg,#b9c8ff,#e8f5ff);border-radius:50%;z-index:-1}
+    .eyebrow{display:inline-flex;gap:8px;align-items:center;padding:8px 12px;border-radius:999px;background:#eef3ff;color:#2446b8;font-weight:700;font-size:13px}.pulse{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 6px rgba(20,184,106,.15)}
+    h1{font-size:clamp(32px,5.5vw,60px);line-height:1.02;margin:20px 0 16px;letter-spacing:-.06em}.lead{font-size:18px;line-height:1.65;color:#465166;max-width:680px;margin:0 0 24px}.actions{display:flex;gap:12px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border-radius:16px;padding:13px 17px;font-weight:800;transition:.2s;white-space:nowrap}.btn.primary{background:linear-gradient(135deg,var(--primary),var(--primary2));color:white;box-shadow:0 12px 26px rgba(52,97,255,.25)}.btn.soft{background:#eef2ff;color:#2946ae}.btn.ghost{background:#fff;border:1px solid var(--line);color:#344054}.btn:hover{transform:translateY(-1px)}.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+    .flow{padding:22px;display:grid;gap:14px}.step{display:grid;grid-template-columns:auto 1fr;gap:12px;padding:16px;border:1px solid var(--line);border-radius:20px;background:#fff}.num{width:34px;height:34px;border-radius:13px;display:grid;place-items:center;background:#eff4ff;color:#2f55d4;font-weight:900}.step b{display:block;margin-bottom:4px}.step span{color:var(--muted);font-size:14px;line-height:1.45}
+    .grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:22px}.panel{padding:22px}.panel h2{margin:0 0 6px;font-size:21px;letter-spacing:-.03em}.sub{margin:0 0 16px;color:var(--muted);line-height:1.5}.upload{border:2px dashed #c9d4f5;border-radius:24px;background:linear-gradient(180deg,#f9fbff,#fff);padding:22px;text-align:center;min-height:250px;display:grid;place-items:center;position:relative;overflow:hidden}.upload.drag{border-color:var(--primary);background:#f1f5ff}.upload input{position:absolute;inset:0;opacity:0;cursor:pointer}.camera-input{display:none!important}.upload-icon{font-size:42px;margin-bottom:10px}.preview{width:100%;max-height:310px;object-fit:contain;border-radius:18px;background:#f2f4f7;border:1px solid var(--line);display:none}.chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}.chip{padding:8px 10px;border-radius:999px;background:#f2f4f7;color:#475467;font-size:13px;font-weight:700}.status{margin-top:14px;padding:13px;border-radius:16px;background:#f8fafc;color:#475467;border:1px solid var(--line);font-size:14px;line-height:1.5}.bar{height:8px;background:#edf1f7;border-radius:999px;overflow:hidden;margin-top:9px}.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--primary),var(--green));transition:.25s}
+    .fields{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.field{display:grid;gap:7px}.field label{font-size:13px;font-weight:800;color:#344054}.field input,.field textarea,.field select{width:100%;border:1px solid var(--line);border-radius:15px;padding:12px 13px;background:#fff;color:var(--ink);outline:none}.field input:focus,.field textarea:focus,.field select:focus{border-color:#8fa6ff;box-shadow:0 0 0 4px rgba(52,97,255,.10)}.wide{grid-column:1/-1}.field textarea{min-height:108px;resize:vertical}.confidence{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.score{background:#f8fafc;border:1px solid var(--line);border-radius:17px;padding:12px}.score small{display:block;color:var(--muted);margin-bottom:8px}.score b{font-size:22px}.score.good b{color:var(--green)}.score.warn b{color:var(--amber)}
+    .draft{background:#101828;color:#f2f4f7;border-radius:22px;padding:18px;min-height:245px;white-space:pre-wrap;line-height:1.68;font-family:"SFMono-Regular",Consolas,monospace;font-size:14px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}.ocrbox{margin-top:14px}.raw{max-height:160px;overflow:auto;background:#f8fafc;border:1px solid var(--line);border-radius:18px;padding:13px;color:#475467;white-space:pre-wrap;font-size:13px;display:none}.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#172033;color:#fff;padding:12px 16px;border-radius:999px;box-shadow:0 12px 30px rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:.25s;z-index:10}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .examples{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}.mini{padding:13px;border:1px solid var(--line);border-radius:17px;background:#fff}.mini b{display:block;margin-bottom:5px}.mini span{font-size:13px;color:var(--muted);line-height:1.45}
+    .queue{margin-top:12px;display:grid;gap:8px}.queue-item{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 12px;color:#475467;font-size:13px}.queue-item b{color:#172033}.records-panel{margin-top:22px}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:20px;background:#fff}.records{width:100%;border-collapse:collapse;min-width:900px}.records th,.records td{padding:12px 13px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;vertical-align:top}.records th{background:#f8fafc;color:#344054;font-weight:900;position:sticky;top:0}.records td{color:#475467}.empty{padding:24px;text-align:center;color:#667085}.records-actions{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.badge{display:inline-flex;align-items:center;border-radius:999px;background:#eef2ff;color:#2946ae;padding:6px 9px;font-weight:800;font-size:12px}
+    @media (max-width:900px){.hero,.grid{grid-template-columns:1fr}.fields,.confidence,.examples{grid-template-columns:1fr}.hero-card{padding:26px}.wrap{padding-top:14px}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div class="hero-card">
+        <span class="eyebrow"><i class="pulse"></i> OCR 기반 지출결의서 초안 자동 생성</span>
+        <h1>영수증 사진 한 장으로<br>결의서 초안을 완성하세요.</h1>
+        <p class="lead">최대 5장의 영수증을 업로드/촬영하면 OCR이 순서대로 인식하고, 초기화 전까지 지출 데이터가 아래에 누적되며 XLSX 파일로 저장할 수 있습니다.</p>
+        <div class="actions">
+          <button class="btn primary" id="heroUpload">📁 업로드</button>
+          <button class="btn soft" id="cameraBtn">📷 촬영</button>
+          <button class="btn ghost" id="deleteBtn" disabled>🗑️ 삭제</button>
+          <button class="btn ghost" id="resetBtn">↺ 초기화</button>
+          <button class="btn soft" id="sampleBtn">🧾 샘플 체험</button>
+          <button class="btn ghost" id="scrollDraft">✍️ 초안 확인</button>
+        </div>
+      </div>
+      <div class="hero-card flow">
+        <div class="step"><div class="num">1</div><div><b>입력</b><span>모바일에서는 카메라 촬영, 데스크톱에서는 영수증 이미지 업로드</span></div></div>
+        <div class="step"><div class="num">2</div><div><b>인식</b><span>최대 5장까지 연속 OCR로 한글/영문 텍스트와 날짜·금액·상호 후보를 추출</span></div></div>
+        <div class="step"><div class="num">3</div><div><b>초안</b><span>처리된 영수증은 아래 누적 목록에 순서대로 쌓이고 XLSX로 저장</span></div></div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>1. 영수증 업로드</h2>
+        <p class="sub">사진 품질이 낮아도 먼저 인식하고, 애매한 값은 오른쪽에서 직접 수정할 수 있습니다.</p>
+        <div class="upload" id="dropZone">
+          <input id="fileInput" type="file" accept="image/*" multiple />
+          <div id="uploadHint">
+            <div class="upload-icon">📎</div>
+            <b>클릭해서 영수증 최대 5장 업로드</b><br><span style="color:#667085">모바일 사진 보관함/데스크톱 드래그 앤 드롭 지원, OCR은 순서대로 진행됩니다</span>
+          </div>
+          <img class="preview" id="preview" alt="업로드한 영수증 미리보기" />
+        </div>
+        <input id="cameraInput" class="camera-input" type="file" accept="image/*" capture="environment" />
+        <div class="chips">
+          <span class="chip">최대 5장 일괄 처리</span><span class="chip">한글·영문 OCR</span><span class="chip">XLSX 저장</span>
+        </div>
+        <button class="btn primary" id="scanBtn" disabled>🔍 선택한 영수증 연속 OCR</button>
+        <div class="status" id="status">대기 중입니다. 영수증 이미지를 올리면 OCR 버튼이 활성화됩니다.<div class="bar"><i id="progress"></i></div></div>
+        <div class="ocrbox">
+          <button class="btn ghost" id="toggleRaw">원문 OCR 보기</button>
+          <div class="raw" id="rawText"></div>
+        </div>
+        <div class="queue" id="queueList"></div>
+        <div class="examples">
+          <div class="mini"><b>자동 추출</b><span>일자, 결제금액, 가맹점명 후보를 패턴과 위치 기반으로 추정</span></div>
+          <div class="mini"><b>실시간 수정</b><span>입력값을 바꾸면 초안 텍스트가 즉시 업데이트</span></div>
+          <div class="mini"><b>복사/저장</b><span>결의서 초안을 복사하거나 .txt 파일로 다운로드</span></div>
+        </div>
+      </div>
+
+      <div class="panel" id="draftPanel">
+        <h2>2. 추출 정보 확인</h2>
+        <p class="sub">OCR 결과를 검토하고 회사 제출용 문장으로 다듬으세요.</p>
+        <div class="fields">
+          <div class="field"><label for="date">사용 일자</label><input id="date" placeholder="2026-07-08" /></div>
+          <div class="field"><label for="amount">금액</label><input id="amount" placeholder="48,500" inputmode="numeric" /></div>
+          <div class="field"><label for="merchant">가맹점명</label><input id="merchant" placeholder="예: 스타벅스 강남점" /></div>
+          <div class="field"><label for="category">지출 항목</label><select id="category"><option>식대</option><option>교통비</option><option>소모품비</option><option>접대비</option><option>교육훈련비</option><option>기타</option></select></div>
+          <div class="field"><label for="paymethod">결제 수단</label><select id="paymethod"><option>법인카드</option><option>개인카드</option><option>현금</option><option>계좌이체</option></select></div>
+          <div class="field"><label for="writer">작성자</label><input id="writer" placeholder="홍길동" /></div>
+          <div class="field wide"><label for="purpose">지출 목적</label><textarea id="purpose" placeholder="예: 고객 미팅 후 업무 협의 식대"></textarea></div>
+        </div>
+        <div class="confidence">
+          <div class="score good"><small>일자 신뢰도</small><b id="dateScore">-</b></div>
+          <div class="score good"><small>금액 신뢰도</small><b id="amountScore">-</b></div>
+          <div class="score warn"><small>가맹점 신뢰도</small><b id="merchantScore">-</b></div>
+        </div>
+        <h2>3. 지출결의서 초안</h2>
+        <p class="sub">아래 텍스트를 복사해 결재 시스템/문서에 붙여넣을 수 있습니다.</p>
+        <div class="draft" id="draft"></div>
+        <div class="actions" style="margin-top:14px">
+          <button class="btn primary" id="copyBtn">📋 초안 복사</button>
+          <button class="btn ghost" id="downloadBtn">⬇️ TXT 다운로드</button>
+          <button class="btn soft" id="saveCurrentBtn">➕ 현재 초안 누적</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel records-panel" id="recordsPanel">
+      <h2>4. 누적 지출 데이터</h2>
+      <p class="sub">OCR 처리 또는 “현재 초안 누적”으로 추가된 데이터가 초기화 전까지 순서대로 쌓입니다. 작업이 끝나면 XLSX 파일로 저장하세요.</p>
+      <div class="records-actions">
+        <span class="badge" id="recordCount">누적 0건</span>
+        <button class="btn primary" id="xlsxBtn" disabled>📊 XLSX 저장</button>
+        <button class="btn ghost" id="clearRecordsBtn" disabled>누적 데이터만 비우기</button>
+      </div>
+      <div class="table-wrap">
+        <table class="records" id="recordsTable">
+          <thead><tr><th>No.</th><th>사용 일자</th><th>금액</th><th>가맹점명</th><th>항목</th><th>결제 수단</th><th>작성자</th><th>지출 목적</th><th>신뢰도</th></tr></thead>
+          <tbody id="recordsBody"><tr><td colspan="9" class="empty">아직 누적된 데이터가 없습니다.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <div class="toast" id="toast">완료</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const els={file:$('#fileInput'),camera:$('#cameraInput'),drop:$('#dropZone'),hint:$('#uploadHint'),preview:$('#preview'),scan:$('#scanBtn'),cameraBtn:$('#cameraBtn'),deleteBtn:$('#deleteBtn'),status:$('#status'),progress:$('#progress'),raw:$('#rawText'),date:$('#date'),amount:$('#amount'),merchant:$('#merchant'),category:$('#category'),paymethod:$('#paymethod'),writer:$('#writer'),purpose:$('#purpose'),draft:$('#draft'),queue:$('#queueList'),recordsBody:$('#recordsBody'),recordCount:$('#recordCount'),xlsxBtn:$('#xlsxBtn'),clearRecordsBtn:$('#clearRecordsBtn'),saveCurrentBtn:$('#saveCurrentBtn')};
+let selectedReceipts=[], ocrText='', records=[];
+const sampleText=`COFFEE BEAN SEOUL STATION
+서울특별시 중구 한강대로 405
+사업자 123-45-67890
+거래일시 2026.07.08 13:42
+품목 아메리카노 외 3
+합계 48,500원
+승인금액 48,500
+법인카드 승인완료`;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
+function setStatus(msg,p=0){els.status.firstChild.nodeValue=msg;els.progress.style.width=p+'%'}
+function fmtAmount(v){const n=(v||'').toString().replace(/[^0-9]/g,'');return n?Number(n).toLocaleString('ko-KR'):''}
+function amountNumber(v){return Number((v||'').toString().replace(/[^0-9]/g,''))||0}
+function normalizeDate(s){if(!s)return'';let m=s.match(/(20\d{2})\D{1,4}(\d{1,2})\D{1,4}(\d{1,2})/);if(!m){m=s.match(/(^|\D)(\d{2})[.\/-](\d{1,2})[.\/-](\d{1,2})(\D|$)/); if(m)m=[m[0],`20${m[2]}`,m[3],m[4]];}if(!m)return'';const y=m[1], mo=Number(m[2]), da=Number(m[3]);if(mo<1||mo>12||da<1||da>31)return'';return `${y}-${String(mo).padStart(2,'0')}-${String(da).padStart(2,'0')}`}
+function extractDate(text){const candidates=[...text.matchAll(/20\d{2}\D{1,4}\d{1,2}\D{1,4}\d{1,2}|(?:^|\D)\d{2}[.\/-]\d{1,2}[.\/-]\d{1,2}(?:\D|$)/g)].map(x=>normalizeDate(x[0])).filter(Boolean);return candidates[0]||'';}
+function parseReceipt(text){const lines=text.split(/\n+/).map(l=>l.trim()).filter(Boolean);let date='',amount='',merchant='';date=extractDate(text);const amountCandidates=[]; lines.forEach((l,i)=>{const nums=[...l.matchAll(/([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{4,7})\s*(?:원)?/g)].map(x=>x[1]); nums.forEach(n=>{let score=Number(n.replace(/,/g,'')); if(/합계|총액|결제|승인|금액|TOTAL|AMOUNT/i.test(l))score+=10000000; amountCandidates.push({n,score,line:l,i})})}); amountCandidates.sort((a,b)=>b.score-a.score); if(amountCandidates[0]) amount=fmtAmount(amountCandidates[0].n);const bad=/사업자|대표|주소|전화|카드|승인|합계|금액|부가|과세|면세|품목|거래|일시|영수증|RECEIPT|TEL|NO\.|VAT|TOTAL|AMOUNT/i;merchant=(lines.find(l=>l.length>=2&&l.length<=32&&!bad.test(l)&&/[가-힣A-Za-z]/.test(l))||'').replace(/[|*_]/g,'').trim();return {date,amount,merchant,dateScore:date?'92%':'-',amountScore:amount?'95%':'-',merchantScore:merchant?'72%':'-'};}
+function applyParsed(r){els.date.value=r.date||'';els.amount.value=r.amount||'';els.merchant.value=r.merchant||'';$('#dateScore').textContent=r.dateScore;$('#amountScore').textContent=r.amountScore;$('#merchantScore').textContent=r.merchantScore;if(!els.purpose.value&&els.merchant.value)els.purpose.value=`${els.merchant.value} 이용 관련 ${els.category.value} 지출`;updateDraft();}
+function updateDraft(){const d=els.date.value||'YYYY-MM-DD', a=fmtAmount(els.amount.value)||'0', m=els.merchant.value||'가맹점명 미확인', c=els.category.value, p=els.purpose.value||'업무 관련 지출', w=els.writer.value||'작성자 미입력', pay=els.paymethod.value;els.amount.value=fmtAmount(els.amount.value);els.draft.textContent=`[지출결의서 초안]\n\n1. 작성자: ${w}\n2. 사용 일자: ${d}\n3. 지출 항목: ${c}\n4. 가맹점명: ${m}\n5. 결제 수단: ${pay}\n6. 지출 금액: ${a}원\n7. 지출 목적: ${p}\n\n상기와 같이 업무 수행을 위해 ${d}에 ${m}에서 ${c} ${a}원을 ${pay}로 지출하였으므로 지출결의를 요청합니다.\n\n첨부: 영수증 이미지 1부\n검토 메모: OCR 자동 인식 결과이므로 제출 전 원본 영수증과 금액/일자/가맹점명을 최종 확인해 주세요.`}
+function currentRow(source='수동 추가', scores={}){return {no:records.length+1,date:els.date.value||'',amount:fmtAmount(els.amount.value)||'',amountValue:amountNumber(els.amount.value),merchant:els.merchant.value||'',category:els.category.value,paymethod:els.paymethod.value,writer:els.writer.value||'',purpose:els.purpose.value||'',source,confidence:`일자 ${scores.dateScore||$('#dateScore').textContent} / 금액 ${scores.amountScore||$('#amountScore').textContent} / 가맹점 ${scores.merchantScore||$('#merchantScore').textContent}`}}
+function addRecord(row){records.push({...row,no:records.length+1});renderRecords();}
+function renderRecords(){els.recordCount.textContent=`누적 ${records.length}건`;els.xlsxBtn.disabled=records.length===0;els.clearRecordsBtn.disabled=records.length===0;if(!records.length){els.recordsBody.innerHTML='<tr><td colspan="9" class="empty">아직 누적된 데이터가 없습니다.</td></tr>';return;}els.recordsBody.innerHTML=records.map(r=>`<tr><td>${r.no}</td><td>${r.date||'-'}</td><td>${r.amount||'-'}</td><td>${r.merchant||'-'}</td><td>${r.category}</td><td>${r.paymethod}</td><td>${r.writer||'-'}</td><td>${r.purpose||'-'}</td><td>${r.confidence}</td></tr>`).join('');}
+function renderQueue(){if(!selectedReceipts.length){els.queue.innerHTML='';els.preview.style.display='none';els.hint.style.display='block';els.scan.disabled=true;els.deleteBtn.disabled=true;return;}els.scan.disabled=false;els.deleteBtn.disabled=false;els.hint.style.display='none';els.preview.src=selectedReceipts[0].dataUrl;els.preview.style.display='block';els.queue.innerHTML=selectedReceipts.map((r,i)=>`<div class="queue-item"><span><b>${i+1}</b>. ${r.name}</span><span>${r.kind||'대기'}</span></div>`).join('');}
+function readFileAsDataURL(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=e=>resolve(e.target.result);reader.onerror=reject;reader.readAsDataURL(file)})}
+async function loadFiles(fileList){const files=[...fileList].filter(f=>f.type.startsWith('image/')).slice(0,5);if(!files.length)return toast('이미지 파일을 선택해 주세요.');if(fileList.length>5)toast('최대 5장까지만 처리합니다.');selectedReceipts=[];for(const f of files){selectedReceipts.push({name:f.name,dataUrl:await readFileAsDataURL(f),kind:'대기'});}ocrText='';els.raw.textContent='';renderQueue();setStatus(`${selectedReceipts.length}장의 영수증이 준비되었습니다. 연속 OCR을 시작하세요.`,8)}
+function deleteReceipt(){selectedReceipts=[];ocrText='';els.file.value='';els.camera.value='';els.raw.textContent='';els.raw.style.display='none';renderQueue();setStatus('선택된 영수증이 삭제되었습니다. 누적 데이터는 유지됩니다.',0);toast('선택 영수증 삭제 완료')}
+function resetAll(){deleteReceipt();records=[];renderRecords();['date','amount','merchant','purpose','writer'].forEach(id=>$('#'+id).value='');els.category.value='식대';els.paymethod.value='법인카드';$('#dateScore').textContent=$('#amountScore').textContent=$('#merchantScore').textContent='-';setStatus('전체 초기화되었습니다. 영수증을 최대 5장까지 업로드하거나 촬영해 주세요.',0);updateDraft()}
+function makeSampleDataUrl(label, date, amount){const c=document.createElement('canvas');c.width=720;c.height=900;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.fillStyle='#111827';x.font='bold 40px Arial';x.fillText(label,54,100);x.font='28px Arial';[`거래일시 ${date} 13:42`,`품목 업무 이용`,`합계 ${amount}원`,`승인금액 ${amount}`,`법인카드 승인완료`].forEach((l,i)=>x.fillText(l,56,190+i*62));return c.toDataURL('image/png')}
+async function runOCR(){if(!selectedReceipts.length)return;els.scan.disabled=true;recordsStarted=records.length;try{for(let i=0;i<selectedReceipts.length;i++){const item=selectedReceipts[i];item.kind='OCR 중';renderQueue();setStatus(`${i+1}/${selectedReceipts.length} OCR 처리 중: ${item.name}`,Math.round((i/selectedReceipts.length)*90)+5);const res=await Tesseract.recognize(item.dataUrl,'kor+eng',{logger:m=>{if(m.status){const base=(i/selectedReceipts.length)*90;const p=Math.min(96,Math.round(base+(m.progress||0)*(90/selectedReceipts.length))+5);setStatus(`${i+1}/${selectedReceipts.length} OCR 진행 중: ${m.status}`,p);}}});ocrText=res.data.text||'';els.raw.textContent += `\n\n--- ${item.name} ---\n${ocrText}`;const parsed=parseReceipt(ocrText);applyParsed(parsed);addRecord(currentRow(item.name, parsed));item.kind='완료';renderQueue();}setStatus(`${selectedReceipts.length}장 OCR 완료 · 누적 ${records.length}건`,100);toast('연속 OCR 완료')}catch(e){console.error(e);setStatus('OCR 실행 중 오류가 발생했습니다. 이미지 품질을 확인하거나 다시 시도해 주세요.',0);toast('OCR 오류')}finally{els.scan.disabled=false;}}
+function exportXLSX(){if(!records.length)return toast('저장할 누적 데이터가 없습니다.');const rows=records.map(r=>({'No.':r.no,'사용 일자':r.date,'금액':r.amountValue,'금액 표시':r.amount,'가맹점명':r.merchant,'지출 항목':r.category,'결제 수단':r.paymethod,'작성자':r.writer,'지출 목적':r.purpose,'신뢰도':r.confidence,'원본/메모':r.source}));const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[{wch:6},{wch:12},{wch:12},{wch:12},{wch:24},{wch:12},{wch:12},{wch:12},{wch:36},{wch:30},{wch:24}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'지출결의서_OCR');XLSX.writeFile(wb,`expense-receipts-${new Date().toISOString().slice(0,10)}.xlsx`);toast('XLSX 파일 저장 완료')}
+els.file.addEventListener('change',e=>loadFiles(e.target.files));els.camera.addEventListener('change',e=>loadFiles(e.target.files));
+['dragenter','dragover'].forEach(ev=>els.drop.addEventListener(ev,e=>{e.preventDefault();els.drop.classList.add('drag')}));['dragleave','drop'].forEach(ev=>els.drop.addEventListener(ev,e=>{e.preventDefault();els.drop.classList.remove('drag')}));els.drop.addEventListener('drop',e=>{e.preventDefault();loadFiles(e.dataTransfer.files)});
+$('#heroUpload').onclick=()=>els.file.click();els.cameraBtn.onclick=()=>els.camera.click();els.deleteBtn.onclick=deleteReceipt;$('#scrollDraft').onclick=()=>$('#recordsPanel').scrollIntoView({behavior:'smooth'});
+$('#sampleBtn').onclick=()=>{selectedReceipts=[{name:'샘플_커피_영수증.png',dataUrl:makeSampleDataUrl('COFFEE BEAN SEOUL STATION','2026.07.08','48,500'),kind:'샘플'},{name:'샘플_택시_영수증.png',dataUrl:makeSampleDataUrl('SEOUL TAXI','2026.07.08','18,200'),kind:'샘플'},{name:'샘플_문구_영수증.png',dataUrl:makeSampleDataUrl('OFFICE DEPOT GANGNAM','2026.07.09','32,000'),kind:'샘플'}];renderQueue();setStatus('샘플 영수증 3장이 준비되었습니다. 연속 OCR 또는 아래 누적 테스트를 진행하세요.',20);const parsed=parseReceipt(sampleText);applyParsed(parsed);toast('샘플 3장 준비 완료')};
+els.scan.onclick=runOCR;$('#toggleRaw').onclick=()=>{els.raw.style.display=els.raw.style.display==='block'?'none':'block'};$('#resetBtn').onclick=resetAll;
+['date','amount','merchant','category','paymethod','writer','purpose'].forEach(id=>$('#'+id).addEventListener('input',updateDraft));
+$('#copyBtn').onclick=async()=>{await navigator.clipboard.writeText(els.draft.textContent);toast('초안이 복사되었습니다')};
+$('#downloadBtn').onclick=()=>{const blob=new Blob([els.draft.textContent],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`expense-draft-${els.date.value||'receipt'}.txt`;a.click();URL.revokeObjectURL(a.href);toast('TXT 파일 다운로드')};
+els.saveCurrentBtn.onclick=()=>{addRecord(currentRow('현재 초안 수동 누적'));toast('현재 초안이 누적되었습니다')};els.xlsxBtn.onclick=exportXLSX;els.clearRecordsBtn.onclick=()=>{records=[];renderRecords();toast('누적 데이터만 비웠습니다')};
+updateDraft();renderRecords();renderQueue();
+</script>
+</body>
+</html>
